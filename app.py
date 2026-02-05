@@ -9,7 +9,6 @@ from datetime import datetime
 st.set_page_config(page_title="Hospital Integral Pro", layout="wide", page_icon="🏥")
 
 # ---------------- 2. LÓGICA DE LA PORTADA (SESSION STATE) ----------------
-# Inicializamos la variable para saber si ya entró o no
 if 'ingreso_confirmado' not in st.session_state:
     st.session_state['ingreso_confirmado'] = False
 
@@ -18,8 +17,6 @@ def entrar():
 
 # ---------------- 3. PANTALLA DE BIENVENIDA (SI NO HA ENTRADO) ----------------
 if not st.session_state['ingreso_confirmado']:
-    
-    # CSS para centrar todo, fondo elegante y estilo del botón
     st.markdown("""
     <style>
         .stApp {
@@ -37,16 +34,6 @@ if not st.session_state['ingreso_confirmado']:
             color: white;
             padding: 20px;
         }
-        .title {
-            font-size: 60px;
-            font-weight: 800;
-            margin-bottom: 10px;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            background: -webkit-linear-gradient(#eee, #333);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            color: white; /* Fallback */
-        }
         .subtitle {
             font-size: 24px;
             font-weight: 300;
@@ -55,9 +42,7 @@ if not st.session_state['ingreso_confirmado']:
             max-width: 800px;
             margin-left: auto;
             margin-right: auto;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
-        /* Ocultar elementos predeterminados de Streamlit en la portada */
         header {visibility: hidden;}
         footer {visibility: hidden;}
         .block-container {
@@ -67,7 +52,6 @@ if not st.session_state['ingreso_confirmado']:
     </style>
     """, unsafe_allow_html=True)
 
-    # Contenedor visual
     st.markdown("""
     <div class="main-container">
         <div style="font-size: 80px;">🏥</div>
@@ -79,27 +63,18 @@ if not st.session_state['ingreso_confirmado']:
     </div>
     """, unsafe_allow_html=True)
 
-    # Botón centrado usando columnas
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # El botón nativo de Streamlit
         st.button("🚀 QUIERO ACCEDER AL SISTEMA", on_click=entrar, use_container_width=True, type="primary")
-
 
 # ---------------- 4. APLICACIÓN PRINCIPAL (SI YA ENTRÓ) ----------------
 else:
-    # --- AQUÍ EMPIEZA TU CÓDIGO DEL SIMULADOR ---
-    
-    # CSS para regresar el fondo a blanco (limpio) dentro de la app
     st.markdown("""
         <style>
-        .stApp {
-            background: white; 
-        }
+        .stApp { background: white; }
         </style>
     """, unsafe_allow_html=True)
 
-    # Banner superior dentro de la app
     st.markdown("""
     <div style="padding:15px; background:linear-gradient(90deg, #005C97, #363795); border-radius:10px; color:white; margin-bottom:20px; text-align:center;">
         <h2 style="margin:0; color:white;">🏥 DASHBOARD DE CONTROL</h2>
@@ -141,7 +116,7 @@ else:
         "🛢️ Suministros (Volumen)"
     ])
 
-    # TAB 1
+    # ================= TAB 1: FLUJO =================
     with tabs[0]:
         st.subheader("📊 Análisis de Saturación de Urgencias")
         col1, col2 = st.columns([1, 2])
@@ -158,62 +133,113 @@ else:
             k = 5.0
             funcion = intensidad * t * sp.exp(-t/k)
             st.latex(r"f(t) = " + sp.latex(funcion))
-            integral_exacta = sp.integrate(funcion, (t, 0, horas))
-            res_exacto = float(integral_exacta.evalf())
+            
+            # Cálculo
             f_num = sp.lambdify(t, funcion, "numpy")
+            res_exacto = float(sp.integrate(funcion, (t, 0, horas)).evalf())
+            
+            # Gráfica
             x = np.linspace(0, horas, 200)
             y = f_num(x)
             dx = horas / n_rects
             x_r = np.linspace(0, horas - dx, n_rects)
             y_r = f_num(x_r)
             area_riemann = np.sum(y_r * dx)
+            
             c_a, c_b = st.columns(2)
             c_a.metric("Total Exacto", f"{res_exacto:.2f}", delta="Pacientes")
             c_b.metric("Aprox. Riemann", f"{area_riemann:.2f}")
+            
             fig, ax = plt.subplots(figsize=(8, 3.5))
-            ax.plot(x, y, '#e74c3c', label="Tasa Real")
+            ax.plot(x, y, '#e74c3c', label="Tasa Real", linewidth=2)
             ax.fill_between(x, y, alpha=0.1, color='red')
             ax.bar(x_r, y_r, width=dx, align='edge', alpha=0.4, color='#3498db', edgecolor='blue', label="Riemann")
+            ax.set_title("Ingresos vs Tiempo")
+            ax.set_xlabel("Horas")
             ax.legend()
             st.pyplot(fig)
 
-    # TAB 2
+    # ================= TAB 2: LOGÍSTICA (GRÁFICA NUEVA) =================
     with tabs[1]:
         st.subheader("🚑 Optimización de Rutas")
         col_a, col_b = st.columns(2)
         with col_a:
+            st.info("Función de la carretera:")
             st.latex(r"Trayectoria: f(t) = 0.5t^2")
             tiempo_viaje = st.number_input("Duración (h)", 1.0, 10.0, 3.0)
+            
+            # Cálculo
             f_ruta = 0.5 * t**2
             df = sp.diff(f_ruta, t)
             integrando = sp.sqrt(1 + df**2)
             distancia = sp.integrate(integrando, (t, 0, tiempo_viaje)).evalf()
-            st.metric("Distancia Real", f"{distancia:.2f} km")
+            
+            st.metric("Distancia Real Recorrida", f"{distancia:.2f} km")
             if st.button("💾 Guardar Ruta"):
                 guardar_registro("Ruta Ambulancia", f"{distancia:.2f} km")
+                
         with col_b:
-            st.latex(r"L = \int_0^T \sqrt{1 + [f'(t)]^2} \, dt")
+            # --- NUEVA GRÁFICA DE LA CARRETERA ---
+            st.write("**Visualización de la Ruta:**")
+            t_vals = np.linspace(0, tiempo_viaje, 100)
+            y_vals = 0.5 * t_vals**2  # La función de la parábola
+            
+            fig2, ax2 = plt.subplots(figsize=(6, 4))
+            ax2.plot(t_vals, y_vals, color='#8e44ad', linewidth=3, label="Carretera")
+            ax2.fill_between(t_vals, y_vals, alpha=0.1, color='purple')
+            ax2.set_title("Trayectoria Curva de la Ambulancia")
+            ax2.set_xlabel("Tiempo / Distancia Eje X")
+            ax2.set_ylabel("Desplazamiento")
+            ax2.grid(True, linestyle='--', alpha=0.6)
+            ax2.legend()
+            st.pyplot(fig2)
 
-    # TAB 3
+    # ================= TAB 3: FARMACIA (GRÁFICA NUEVA) =================
     with tabs[2]:
         st.subheader("💊 Cinética de Medicamentos")
-        num = 3*t + 2
-        den = (t+1)*(t+3)
-        fraccion = num/den
-        st.latex(r"C(t) = " + sp.latex(fraccion))
-        st.write("Descomposición automática:")
-        parciales = sp.apart(fraccion)
-        st.latex(r"C(t) = " + sp.latex(parciales))
-        st.info("La integral resulta en Logaritmos Naturales (ln).")
-        if st.button("💾 Guardar Fármaco"):
-            guardar_registro("Farmacia", "Descomposición Exitosa")
+        col_f1, col_f2 = st.columns([1, 1])
+        
+        with col_f1:
+            num = 3*t + 2
+            den = (t+1)*(t+3)
+            fraccion = num/den
+            
+            st.markdown("**Función de Concentración:**")
+            st.latex(r"C(t) = " + sp.latex(fraccion))
+            
+            st.markdown("**Descomposición en Fracciones:**")
+            parciales = sp.apart(fraccion)
+            st.latex(r"C(t) = " + sp.latex(parciales))
+            
+            st.info("La integral resulta en Ln(|t+3|) y Ln(|t+1|).")
+            if st.button("💾 Guardar Fármaco"):
+                guardar_registro("Farmacia", "Descomposición Exitosa")
 
-    # TAB 4
+        with col_f2:
+            # --- NUEVA GRÁFICA DE CONCENTRACIÓN ---
+            st.write("**Curva de Absorción/Eliminación:**")
+            
+            # Creamos la función numérica para graficar
+            t_med = np.linspace(0, 15, 100) # Graficamos 15 horas
+            # Fórmula numpy: (3t + 2) / ((t+1)(t+3))
+            c_med = (3*t_med + 2) / ((t_med + 1)*(t_med + 3))
+            
+            fig3, ax3 = plt.subplots(figsize=(6, 4))
+            ax3.plot(t_med, c_med, color='#2ecc71', linewidth=3, label="Concentración en Sangre")
+            ax3.fill_between(t_med, c_med, alpha=0.2, color='#2ecc71')
+            ax3.set_title("Comportamiento del Fármaco")
+            ax3.set_xlabel("Horas desde la ingesta")
+            ax3.set_ylabel("Concentración (mg/L)")
+            ax3.grid(True, linestyle='--', alpha=0.6)
+            ax3.legend()
+            st.pyplot(fig3)
+
+    # ================= TAB 4: SUMINISTROS =================
     with tabs[3]:
         st.subheader("🛢️ Tanques de Oxígeno")
         col_x, col_y = st.columns([1, 1])
         with col_x:
-            h_tanque = st.slider("Altura (m)", 1, 10, 5)
+            h_tanque = st.slider("Altura del Tanque (m)", 1, 10, 5)
             radio_fun = sp.sqrt(t + 1)
             st.latex(r"Radio(t) = \sqrt{t+1}")
             volumen = sp.pi * sp.integrate(radio_fun**2, (t, 0, h_tanque)).evalf()
@@ -224,8 +250,9 @@ else:
             x_p = np.linspace(0, h_tanque, 100)
             y_p = np.sqrt(x_p + 1)
             fig_v, ax_v = plt.subplots(figsize=(5,3))
-            ax_v.plot(x_p, y_p, 'g')
+            ax_v.plot(x_p, y_p, 'g', linewidth=2)
             ax_v.fill_between(x_p, y_p, alpha=0.2, color='green')
+            ax_v.set_title("Perfil del Tanque (Sólido Revolución)")
             st.pyplot(fig_v)
 
     # SIDEBAR
